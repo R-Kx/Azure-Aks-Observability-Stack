@@ -80,7 +80,7 @@ resource "azurerm_portal_dashboard" "aks_dashboard" {
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
 
-  dashboard_properties = templatefile("${path.module}/dash-hw3.json.tftpl", {
+  dashboard_properties = templatefile("${path.module}/azure-dashboard.json.tftpl", {
     resource_group  = azurerm_resource_group.rg.name
     subscription_id = data.azurerm_subscription.current.subscription_id
     cluster_name    = azurerm_kubernetes_cluster.aks.name
@@ -96,7 +96,7 @@ resource "azurerm_application_insights_workbook" "aks_diag_workbook" {
   display_name        = "aks-diagnostics-insights-${var.prefix}-${var.environment}"
   category            = "workbook"
 
-  data_json = templatefile("${path.module}/workbook-hw3.json.tftpl", {
+  data_json = templatefile("${path.module}/azure-workbook.json.tftpl", {
     cluster_name               = azurerm_kubernetes_cluster.aks.name
     log_analytics_workspace_id = azurerm_log_analytics_workspace.law.id
   })

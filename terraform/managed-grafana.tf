@@ -89,7 +89,7 @@ resource "azurerm_role_assignment" "grafana_admin" {
 }
 
 resource "grafana_dashboard" "aks_monitoring" {
-  config_json = templatefile("${path.module}/grafana-dash-hw3.json.tftpl", {
+  config_json = templatefile("${path.module}/grafana-dashboard.json.tftpl", {
     DS_PROMETHEUS = azurerm_monitor_workspace.amw.name
   })
 
