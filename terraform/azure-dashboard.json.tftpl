@@ -1,0 +1,231 @@
+{
+  "lenses": {
+    "0": {
+      "order": 0,
+      "parts": {
+        "0": {
+          "position": { "x": 0, "y": 0, "colSpan": 6, "rowSpan": 4 },
+          "metadata": {
+            "inputs": [
+              { "name": "resourceTypeMode", "isOptional": true },
+              { "name": "ComponentId", "isOptional": true },
+              { "name": "Scope", "value": { "resourceIds": [ "${log_analytics_workspace_id}" ] }, "isOptional": true },
+              { "name": "PartId", "value": "1a1a1a1a-0001-0001-0001-1a1a1a1a1a1a", "isOptional": true },
+              { "name": "Version", "value": "2.0", "isOptional": true },
+              { "name": "TimeRange", "value": "P1D", "isOptional": true },
+              { "name": "DashboardId", "isOptional": true },
+              { "name": "DraftRequestParameters", "isOptional": true },
+              { "name": "Query", "isOptional": true },
+              { "name": "ControlType", "value": "FrameControlChart", "isOptional": true },
+              { "name": "SpecificChart", "value": "Pie", "isOptional": true },
+              { "name": "PartTitle", "isOptional": true },
+              { "name": "PartSubTitle", "isOptional": true },
+              {
+                "name": "Dimensions",
+                "value": {
+                  "xAxis": { "name": "Status", "type": "string" },
+                  "yAxis": [ { "name": "NodeCount", "type": "long" } ],
+                  "splitBy": [],
+                  "aggregation": "Sum"
+                },
+                "isOptional": true
+              },
+              { "name": "LegendOptions", "value": { "isEnabled": true, "position": "Bottom" }, "isOptional": true },
+              { "name": "IsQueryContainTimeRange", "value": false, "isOptional": true }
+            ],
+            "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+            "settings": {
+              "content": {
+                "Query": "KubeNodeInventory\n| where TimeGenerated > ago(1h)\n| where ClusterName == \"${cluster_name}\"\n| summarize arg_max(TimeGenerated, Status) by Computer\n| summarize NodeCount = count() by Status\n| render piechart",
+                "SpecificChart": "Pie",
+                "PartTitle": "Cluster Node Readiness (Ready vs NotReady)",
+                "PartSubTitle": " "
+              }
+            }
+          }
+        },
+        "1": {
+          "position": { "x": 6, "y": 0, "colSpan": 6, "rowSpan": 4 },
+          "metadata": {
+            "inputs": [
+              { "name": "resourceTypeMode", "isOptional": true },
+              { "name": "ComponentId", "isOptional": true },
+              { "name": "Scope", "value": { "resourceIds": [ "${log_analytics_workspace_id}" ] }, "isOptional": true },
+              { "name": "PartId", "value": "1b1b1b1b-0001-0001-0001-1b1b1b1b1b1b", "isOptional": true },
+              { "name": "Version", "value": "2.0", "isOptional": true },
+              { "name": "TimeRange", "value": "P1D", "isOptional": true },
+              { "name": "DashboardId", "isOptional": true },
+              { "name": "DraftRequestParameters", "isOptional": true },
+              { "name": "Query", "isOptional": true },
+              { "name": "ControlType", "value": "FrameControlChart", "isOptional": true },
+              { "name": "SpecificChart", "value": "Line", "isOptional": true },
+              { "name": "PartTitle", "isOptional": true },
+              { "name": "PartSubTitle", "isOptional": true },
+              {
+                "name": "Dimensions",
+                "value": {
+                  "xAxis": { "name": "TimeGenerated", "type": "datetime" },
+                  "yAxis": [ { "name": "CPU Usage (%)", "type": "real" } ],
+                  "splitBy": [ { "name": "Computer", "type": "string" } ],
+                  "aggregation": "Average"
+                },
+                "isOptional": true
+              },
+              { "name": "LegendOptions", "value": { "isEnabled": true, "position": "Bottom" }, "isOptional": true },
+              { "name": "IsQueryContainTimeRange", "value": false, "isOptional": true }
+            ],
+            "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+            "settings": {
+              "content": {
+                "Query": "Perf\n| where TimeGenerated > ago(24h)\n| where ObjectName == \"K8SNode\" and CounterName == \"cpuUsageNanoCores\"\n| summarize AvgCpuCores = avg(CounterValue) by bin(TimeGenerated, 15m), Computer\n| extend [\"CPU Usage (%)\"] = round((AvgCpuCores / 1000000000) * 100, 2)\n| project TimeGenerated, Computer, [\"CPU Usage (%)\"]\n| render timechart",
+                "SpecificChart": "Line",
+                "PartTitle": "Node CPU Utilization (%)",
+                "PartSubTitle": " "
+              }
+            }
+          }
+        },
+        "2": {
+          "position": { "x": 0, "y": 4, "colSpan": 6, "rowSpan": 4 },
+          "metadata": {
+            "inputs": [
+              { "name": "resourceTypeMode", "isOptional": true },
+              { "name": "ComponentId", "isOptional": true },
+              { "name": "Scope", "value": { "resourceIds": [ "${log_analytics_workspace_id}" ] }, "isOptional": true },
+              { "name": "PartId", "value": "2c2c2c2c-0002-0002-0002-2c2c2c2c2c2c", "isOptional": true },
+              { "name": "Version", "value": "2.0", "isOptional": true },
+              { "name": "TimeRange", "value": "P1D", "isOptional": true },
+              { "name": "DashboardId", "isOptional": true },
+              { "name": "DraftRequestParameters", "isOptional": true },
+              { "name": "Query", "isOptional": true },
+              { "name": "ControlType", "value": "FrameControlChart", "isOptional": true },
+              { "name": "SpecificChart", "value": "Line", "isOptional": true },
+              { "name": "PartTitle", "isOptional": true },
+              { "name": "PartSubTitle", "isOptional": true },
+              {
+                "name": "Dimensions",
+                "value": {
+                  "xAxis": { "name": "TimeGenerated", "type": "datetime" },
+                  "yAxis": [ { "name": "Memory Usage (%)", "type": "real" } ],
+                  "splitBy": [ { "name": "Computer", "type": "string" } ],
+                  "aggregation": "Average"
+                },
+                "isOptional": true
+              },
+              { "name": "LegendOptions", "value": { "isEnabled": true, "position": "Bottom" }, "isOptional": true },
+              { "name": "IsQueryContainTimeRange", "value": false, "isOptional": true }
+            ],
+            "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+            "settings": {
+              "content": {
+                "Query": "Perf\n| where TimeGenerated > ago(24h)\n| where ObjectName == \"K8SNode\"\n| where CounterName in (\"memoryWorkingSetBytes\", \"memoryCapacityBytes\")\n| summarize WorkingSet = avg(iff(CounterName == \"memoryWorkingSetBytes\", CounterValue, real(null))), Capacity = avg(iff(CounterName == \"memoryCapacityBytes\", CounterValue, real(null))) by bin(TimeGenerated, 15m), Computer\n| extend [\"Memory Usage (%)\"] = round((WorkingSet / Capacity) * 100, 2)\n| project TimeGenerated, Computer, [\"Memory Usage (%)\"]\n| render timechart",
+                "SpecificChart": "Line",
+                "PartTitle": "Node Memory Working Set (%)",
+                "PartSubTitle": " "
+              }
+            }
+          }
+        },
+        "3": {
+          "position": { "x": 6, "y": 4, "colSpan": 6, "rowSpan": 4 },
+          "metadata": {
+            "inputs": [
+              { "name": "resourceTypeMode", "isOptional": true },
+              { "name": "ComponentId", "isOptional": true },
+              { "name": "Scope", "value": { "resourceIds": [ "${log_analytics_workspace_id}" ] }, "isOptional": true },
+              { "name": "PartId", "value": "2b2b2b2b-0002-0002-0002-2b2b2b2b2b2b", "isOptional": true },
+              { "name": "Version", "value": "2.0", "isOptional": true },
+              { "name": "TimeRange", "value": "P1D", "isOptional": true },
+              { "name": "DashboardId", "isOptional": true },
+              { "name": "DraftRequestParameters", "isOptional": true },
+              { "name": "Query", "isOptional": true },
+              { "name": "ControlType", "value": "FrameControlChart", "isOptional": true },
+              { "name": "SpecificChart", "value": "UnstackedColumn", "isOptional": true },
+              { "name": "PartTitle", "isOptional": true },
+              { "name": "PartSubTitle", "isOptional": true },
+              {
+                "name": "Dimensions",
+                "value": {
+                  "xAxis": { "name": "PodStatus", "type": "string" },
+                  "yAxis": [ { "name": "PodCount", "type": "long" } ],
+                  "splitBy": [],
+                  "aggregation": "Sum"
+                },
+                "isOptional": true
+              },
+              { "name": "LegendOptions", "value": { "isEnabled": true, "position": "Bottom" }, "isOptional": true },
+              { "name": "IsQueryContainTimeRange", "value": false, "isOptional": true }
+            ],
+            "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+            "settings": {
+              "content": {
+                "Query": "KubePodInventory\n| where TimeGenerated > ago(1h)\n| where ClusterName == \"${cluster_name}\"\n| summarize arg_max(TimeGenerated, PodStatus) by Name, Namespace\n| summarize PodCount = count() by PodStatus\n| render columnchart with(xtitle=\"Phase\", ytitle=\"Pod Count\", kind=unstacked)",
+                "SpecificChart": "UnstackedColumn",
+                "PartTitle": "Pod Count by Status (Running / Pending / Failed)",
+                "PartSubTitle": " "
+              }
+            }
+          }
+        },
+        "4": {
+          "position": { "x": 0, "y": 8, "colSpan": 12, "rowSpan": 4 },
+          "metadata": {
+            "inputs": [
+              { "name": "resourceTypeMode", "isOptional": true },
+              { "name": "ComponentId", "isOptional": true },
+              { "name": "Scope", "value": { "resourceIds": [ "${log_analytics_workspace_id}" ] }, "isOptional": true },
+              { "name": "PartId", "value": "3c3c3c3c-0003-0003-0003-3c3c3c3c3c3c", "isOptional": true },
+              { "name": "Version", "value": "2.0", "isOptional": true },
+              { "name": "TimeRange", "value": "P1D", "isOptional": true },
+              { "name": "DashboardId", "isOptional": true },
+              { "name": "DraftRequestParameters", "isOptional": true },
+              { "name": "Query", "isOptional": true },
+              { "name": "ControlType", "value": "FrameControlChart", "isOptional": true },
+              { "name": "SpecificChart", "value": "UnstackedColumn", "isOptional": true },
+              { "name": "PartTitle", "isOptional": true },
+              { "name": "PartSubTitle", "isOptional": true },
+              {
+                "name": "Dimensions",
+                "value": {
+                  "xAxis": { "name": "AgentPool", "type": "string" },
+                  "yAxis": [ { "name": "ActiveNodes", "type": "long" } ],
+                  "splitBy": [],
+                  "aggregation": "Sum"
+                },
+                "isOptional": true
+              },
+              { "name": "LegendOptions", "value": { "isEnabled": true, "position": "Bottom" }, "isOptional": true },
+              { "name": "IsQueryContainTimeRange", "value": false, "isOptional": true }
+            ],
+            "type": "Extension/Microsoft_OperationsManagementSuite_Workspace/PartType/LogsDashboardPart",
+            "settings": {
+              "content": {
+                "Query": "KubeNodeInventory\n| where TimeGenerated > ago(1h)\n| where ClusterName == \"${cluster_name}\"\n| summarize arg_max(TimeGenerated, Labels) by Computer\n| extend AgentPool = tostring(todynamic(Labels)[0].agentpool)\n| summarize ActiveNodes = dcount(Computer) by AgentPool\n| render columnchart with(xtitle=\"Node Pool\", ytitle=\"Active Nodes\", kind=unstacked)",
+                "SpecificChart": "UnstackedColumn",
+                "PartTitle": "Active Node Count by Node Pool",
+                "PartSubTitle": " "
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "metadata": {
+    "model": {
+      "timeRange": {
+        "value": { "relative": { "duration": 24, "timeUnit": 1 } },
+        "type": "MsPortalFx.Composition.Configuration.ValueTypes.TimeRange"
+      },
+      "filterLocale": { "value": "en-us" },
+      "filters": {
+        "value": {
+          "MsPortalFx_TimeRange": {
+            "model": { "format": "utc", "granularity": "auto", "relative": "24h" },
+            "displayCache": { "name": "UTC Time", "value": "Past 24 hours" }
+          }
+        }
+      }
+    }
+  }
+}

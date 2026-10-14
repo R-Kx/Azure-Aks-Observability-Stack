@@ -1,0 +1,244 @@
+{
+  "version": "Notebook/1.0",
+  "items": [
+    {
+      "type": 1,
+      "content": {
+        "json": "## 🔍 AKS Deep-Dive Diagnostics (${cluster_name})\n*Workload health, resource optimization, log analysis, and network/storage diagnostics. High-level cluster metrics (Node Readiness, CPU/Memory %, overall Pod Status) live on the main Dashboard — this workbook is for troubleshooting.*"
+      },
+      "name": "header_text"
+    },
+    {
+      "type": 9,
+      "content": {
+        "version": "KqlParameterItem/1.0",
+        "parameters": [
+          {
+            "id": "a1a1a1a1-0001-0001-0001-a1a1a1a1a1a1",
+            "version": "KqlParameterItem/1.0",
+            "name": "TimeRange",
+            "type": 4,
+            "isRequired": true,
+            "value": { "durationMs": 86400000 },
+            "typeSettings": {
+              "selectableValues": [
+                { "durationMs": 3600000 },
+                { "durationMs": 14400000 },
+                { "durationMs": 43200000 },
+                { "durationMs": 86400000 },
+                { "durationMs": 172800000 },
+                { "durationMs": 604800000 }
+              ]
+            }
+          },
+          {
+            "id": "a2a2a2a2-0002-0002-0002-a2a2a2a2a2a2",
+            "version": "KqlParameterItem/1.0",
+            "name": "Namespace",
+            "type": 2,
+            "isRequired": false,
+            "multiSelect": false,
+            "quote": "'",
+            "delimiter": ",",
+            "value": "value::all",
+            "query": "KubePodInventory\n| where ClusterName == \"${cluster_name}\"\n| distinct Namespace",
+            "typeSettings": {
+              "additionalResourceOptions": [ "value::all" ],
+              "showDefault": false
+            },
+            "timeContext": { "durationMs": 86400000 },
+            "queryType": 0,
+            "resourceType": "microsoft.operationalinsights/workspaces",
+            "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+          }
+        ],
+        "style": "pills",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces"
+      },
+      "name": "parameters"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Section 1 — Workload & Pod Health Diagnostics"
+      },
+      "name": "section1_header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "KubePodInventory\n| where TimeGenerated {TimeRange}\n| where ClusterName == \"${cluster_name}\"\n| where Namespace == \"default\" or Namespace == '{Namespace}' or '{Namespace}' == 'value::all'\n| summarize ContainerRestartCount = max(ContainerRestartCount), arg_max(TimeGenerated, ContainerStatusReason, PodStatus) by Namespace, PodName=Name, ContainerName\n| extend EffectiveStatus = iff(isempty(ContainerStatusReason), PodStatus, ContainerStatusReason)\n| project Namespace, PodName, ContainerName, ContainerRestartCount, Status = EffectiveStatus\n| order by ContainerRestartCount desc, Status asc",
+        "size": 0,
+        "title": "1a. Pod Health & Restart Overview (by Namespace/Pod)",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ],
+        "visualization": "table"
+      },
+      "customWidth": "50%",
+      "name": "pod_restarts_table"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "KubeEvents\n| where TimeGenerated {TimeRange}\n| where ClusterName == \"${cluster_name}\"\n| where Namespace == \"default\" or Namespace == '{Namespace}' or '{Namespace}' == 'value::all'\n| where KubeEventType == \"Warning\" or Reason in (\"Failed\", \"BackOff\", \"Unhealthy\", \"FailedScheduling\", \"OOMKilling\")\n| summarize EventCount = count() by bin(TimeGenerated, 1h), Reason\n| render columnchart",
+        "size": 0,
+        "title": "1b. Kubernetes Event Trend Over Time (by Reason)",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+      },
+      "customWidth": "50%",
+      "name": "pod_restart_trend"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Section 2 — Resource Optimization & Capacity (Requests vs Usage)"
+      },
+      "name": "section2_header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "Perf\n| where TimeGenerated {TimeRange}\n| where ObjectName == \"K8SContainer\"\n| where CounterName in (\"cpuUsageNanoCores\", \"cpuRequestNanoCores\", \"cpuLimitNanoCores\", \"memoryWorkingSetBytes\", \"memoryRequestBytes\", \"memoryLimitBytes\")\n| extend Container = tostring(parse_path(InstanceName).Filename)\n| where isnotempty(Container) and Container !in (\"Other\", \"subscriptions\", \"resourcegroups\", \"cni-installer\", \"init\", \"install-azurefile-proxy\", \"kube-proxy-bootstrap\")\n| summarize CpuUsage = avg(iff(CounterName == \"cpuUsageNanoCores\", CounterValue, real(null))), CpuRequest = avg(iff(CounterName == \"cpuRequestNanoCores\", CounterValue, real(null))), CpuLimit = avg(iff(CounterName == \"cpuLimitNanoCores\", CounterValue, real(null))), MemUsage = avg(iff(CounterName == \"memoryWorkingSetBytes\", CounterValue, real(null))), MemRequest = avg(iff(CounterName == \"memoryRequestBytes\", CounterValue, real(null))), MemLimit = avg(iff(CounterName == \"memoryLimitBytes\", CounterValue, real(null))) by Container\n| extend CPU_Usage_mCore = iff(isnull(CpuUsage), 0.0, round(todouble(CpuUsage) / 1000000, 1)), CPU_Request_mCore = iff(isnull(CpuRequest), 0.0, round(todouble(CpuRequest) / 1000000, 1)), CPU_Limit_mCore = iff(isnull(CpuLimit), 0.0, round(todouble(CpuLimit) / 1000000, 1)), Mem_Usage_MB = iff(isnull(MemUsage), 0.0, round(todouble(MemUsage) / 1048576, 1)), Mem_Request_MB = iff(isnull(MemRequest), 0.0, round(todouble(MemRequest) / 1048576, 1)), Mem_Limit_MB = iff(isnull(MemLimit), 0.0, round(todouble(MemLimit) / 1048576, 1))\n| project Container, CPU_Usage_mCore, CPU_Request_mCore, CPU_Limit_mCore, Mem_Usage_MB, Mem_Request_MB, Mem_Limit_MB\n| order by Mem_Usage_MB desc",
+        "size": 0,
+        "title": "2a. Container CPU/Memory: Requests vs Limits vs Actual Usage",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+      },
+      "customWidth": "50%",
+      "name": "requests_vs_usage"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "KubeEvents\n| where TimeGenerated {TimeRange}\n| where Reason == \"OOMKilling\" or Message has \"out of memory\" or Message has \"OOMKilled\"\n| summarize OOMKilledEvents = count() by bin(TimeGenerated, 1h)\n| render columnchart",
+        "size": 0,
+        "title": "2b. OOMKilled Containers Over Time",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+      },
+      "customWidth": "50%",
+      "name": "oomkilled_tracking"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Section 3 — Container & Application Logs Analysis"
+      },
+      "name": "section3_header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "ContainerLog\n| where TimeGenerated {TimeRange}\n| where LogEntry has_any (\"Error\", \"error\", \"ERROR\", \"Exception\")\n| extend CleanLog = replace_regex(LogEntry, @\"\\x1B\\[[0-9;]*[a-zA-Z]\", \"\")\n| project TimeGenerated, Computer, ContainerID, CleanLog\n| order by TimeGenerated desc\n| take 200",
+        "size": 0,
+        "title": "3a. Container Error & Warning Logs (stderr / Error / Exception / Pino level>=50)",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ],
+        "visualization": "table"
+      },
+      "customWidth": "100%",
+      "name": "error_logs_table"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "ContainerLog\n| where TimeGenerated {TimeRange}\n| where LogEntrySource == \"stderr\" or LogEntry has_any (\"error\", \"exception\", \"failed\", \"500\", \"502\", \"503\", \"404\")\n| join kind=inner (\n    KubePodInventory\n    | where TimeGenerated {TimeRange}\n    | summarize arg_max(TimeGenerated, ContainerName) by ContainerID\n) on ContainerID\n| extend CleanContainerName = tostring(split(ContainerName, \"/\")[1])\n| extend CleanContainerName = iff(isempty(CleanContainerName), ContainerName, CleanContainerName)\n| where isnotempty(CleanContainerName) and CleanContainerName !in (\"Other\", \"subscriptions\", \"resourcegroups\", \"cni-installer\", \"init\", \"install-azurefile-proxy\", \"kube-proxy-bootstrap\")\n| summarize ErrorCount = count() by CleanContainerName\n| top 10 by ErrorCount desc\n| render barchart",
+        "size": 0,
+        "title": "3b. Top 10 Error-Generating Containers",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+      },
+      "customWidth": "100%",
+      "name": "top_error_containers"
+    },
+    {
+      "type": 1,
+      "content": {
+        "json": "### Section 4 — Networking & Storage Performance"
+      },
+      "name": "section4_header"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "InsightsMetrics\n| where TimeGenerated {TimeRange}\n| where Namespace == \"container.azm.ms/net\"\n| where Name in (\"bytes_recv\", \"bytes_sent\")\n| order by Computer, Name, TimeGenerated asc\n| serialize\n| extend PrevVal = prev(Val), PrevTime = prev(TimeGenerated), PrevComputer = prev(Computer), PrevName = prev(Name)\n| where Computer == PrevComputer and Name == PrevName\n| extend Seconds = datetime_diff('second', TimeGenerated, PrevTime)\n| where Seconds > 0\n| extend BytesPerSec = (Val - PrevVal) / Seconds\n| where BytesPerSec >= 0\n| extend KBps = round(BytesPerSec / 1024, 1)\n| summarize AvgKBps = avg(KBps) by bin(TimeGenerated, 5m), Metric = iff(Name == \"bytes_recv\", \"Bytes Received (KB/s)\", \"Bytes Sent (KB/s)\")\n| render timechart",
+        "size": 0,
+        "title": "4a. Network I/O by Node (Bytes Received / Sent)",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ]
+      },
+      "customWidth": "50%",
+      "name": "network_io"
+    },
+    {
+      "type": 3,
+      "content": {
+        "version": "KqlItem/1.0",
+        "query": "InsightsMetrics\n| where TimeGenerated {TimeRange}\n| where Namespace == \"container.azm.ms/disk\"\n| where Name == \"used_percent\"\n| extend Node = Computer\n| summarize AvgUsedPercent = round(avg(Val), 2) by bin(TimeGenerated, 5m), Node",
+        "size": 0,
+        "title": "4b. Node Disk Usage (%)",
+        "timeContext": { "durationMs": 86400000 },
+        "timeContextFromParameter": "TimeRange",
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "crossComponentResources": [ "${log_analytics_workspace_id}" ],
+        "visualization": "timechart",
+        "chartSettings": {
+          "ySettings": {
+            "numberFormatSettings": {
+              "unit": 17,
+              "options": {
+                "style": "decimal",
+                "maximumFractionDigits": 1
+              }
+            },
+            "min": 0,
+            "max": 100
+          },
+          "legendOptions": {
+            "showLegend": true
+          },
+          "seriesLabelSettings": [
+            {
+              "seriesName": "AvgUsedPercent",
+              "label": "Disk Usage (%)"
+            }
+          ]
+        }
+      },
+      "customWidth": "50%",
+      "name": "pv_usage"
+    }
+  ],
+  "style": "narrow"
+}
